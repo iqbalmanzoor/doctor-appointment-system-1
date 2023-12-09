@@ -1,27 +1,48 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
+from flask_sqlalchemy import SQLAlchemy
+
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///appointments.db'
+db = SQLAlchemy(app)
 
-appointments = [
-  { 'id': "1",'doctor': "1", 'date': "21 Nov 2023", 'rating':"Good"  },
-  { 'id': "2",'doctor': "1", 'date': "22 Nov 2023", 'rating':"Bad"  },
-  { 'id': "3",'doctor': "2", 'date': "22 Nov 2023", 'rating':"Good"  },
-  { 'id': "4",'doctor': "1", 'date': "22 Nov 2023", 'rating':"Bad"  },
-  { 'id': "5",'doctor': "2", 'date': "22 Nov 2023", 'rating':"Good"  },
-]
+# Define Appointment model
+class Appointment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    doctor = db.Column(db.String(50))
+    date = db.Column(db.String(50))
+    rating = db.Column(db.String(50))
 
-@app.route('/hello')
-def hello():
-  greeting = "Hello world!"
-  return greeting
-
+# Routes
 @app.route('/appointments', methods=["GET"])
 def getAppointments():
-  return jsonify(appointments)
+    appointments = Appointment.query.all()
+    appointment_list = [
+        {
+            'id': appointment.id,
+            'doctor': appointment.doctor,
+            'date': appointment.date,
+            'rating': appointment.rating
+        }
+        for appointment in appointments
+    ]
+    return jsonify(appointment_list)
 
-@app.route('/appointment/<id>', methods=["GET"])
+@app.route('/appointment/<int:id>', methods=["GET"])
 def getAppointment(id):
-  id = int(id) - 1
-  return jsonify(appointments[id])
+    appointment = Appointment.query.get(id)
+    if appointment:
+        return jsonify({
+            'id': appointment.id,
+            'doctor': appointment.doctor,
+            'date': appointment.date,
+            'rating': appointment.rating
+        })
+    else:
+        return jsonify({'message': 'Appointment not found'}), 404
+
+# Wrap the creation of tables in an application context
+with app.app_context():
+    db.create_all()
 
 if __name__ == "__main__":
-  app.run(host="0.0.0.0",port=7070)
+    app.run(host="0.0.0.0", port=7070)
